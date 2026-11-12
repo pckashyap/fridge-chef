@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fridge Chef</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍳</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <h1>🍳 Fridge Chef</h1>
+    <p>Tell me what's in your kitchen and I'll show you what you can cook.</p>
+  </header>
+
+  <main>
+    <section class="card" id="kitchen">
+      <h2><span class="step">1</span> What do you have in your kitchen?</h2>
+
+      <form id="add-form" autocomplete="off">
+        <input id="ingredient-input" list="ingredient-list" type="text"
+               placeholder="Type an ingredient, e.g. eggs, rice, spinach… (press Enter)">
+        <datalist id="ingredient-list"></datalist>
+        <button type="submit" class="btn">Add</button>
+      </form>
+      <p class="hint">Tip: you can paste a list separated by commas.</p>
+
+      <div id="my-items-wrap">
+        <div class="row-between">
+          <h3>In your kitchen <span id="count" class="badge">0</span></h3>
+          <button id="clear-btn" class="link-btn" type="button">Clear all</button>
+        </div>
+        <div id="my-items" class="chips"></div>
+        <p id="empty-msg" class="muted">Nothing yet — type above or tap items below.</p>
+      </div>
+
+      <label class="staples">
+        <input type="checkbox" id="staples" checked>
+        I have the basics: salt, pepper, cooking oil and water
+      </label>
+
+      <h3>Or browse and tap to add</h3>
+      <div id="categories"></div>
+    </section>
+
+    <section class="card" id="prefs">
+      <h2><span class="step">2</span> What kind of food do you feel like?</h2>
+      <p class="hint">Pick one or more cuisines, or leave it on "Any cuisine". The numbers show how many recipes match what you have.</p>
+      <div id="cuisine-filter" class="cuisines"></div>
+
+      <h3>Diet</h3>
+      <div class="diet-row">
+        <div class="seg" id="diet-filter">
+          <button data-diet="all" class="active">All</button>
+          <button data-diet="veg"><span class="dot veg"></span>Vegetarian</button>
+          <button data-diet="nonveg"><span class="dot nonveg"></span>Non-veg</button>
+        </div>
+        <label class="eggs-ok" id="eggs-ok-wrap">
+          <input type="checkbox" id="eggs-ok" checked> Eggs count as vegetarian
+        </label>
+      </div>
+    </section>
+
+    <section class="card" id="results-section">
+      <h2><span class="step">3</span> Recipes you can make</h2>
+      <div class="filters">
+        <div class="seg" id="meal-filter">
+          <button data-meal="all" class="active">All</button>
+          <button data-meal="breakfast">Breakfast</button>
+          <button data-meal="lunch">Lunch</button>
+          <button data-meal="dinner">Dinner</button>
+          <button data-meal="snack">Snacks</button>
+        </div>
+        <label class="missing-filter">
+          Show recipes missing up to
+          <select id="max-missing">
+            <option value="0">0 items</option>
+            <option value="1">1 item</option>
+            <option value="2" selected>2 items</option>
+            <option value="99">any number</option>
+          </select>
+        </label>
+      </div>
+      <div id="results"></div>
+    </section>
+  </main>
+
+  <dialog id="recipe-dialog">
+    <div id="dialog-body"></div>
+  </dialog>
+
+  <footer>
+    Ingredients and selections are saved in your browser.<br>
+    Recipe photos are free-licensed images from Wikipedia / Wikimedia Commons and show a typical version of each dish.
+  </footer>
+
+  <script src="recipes.js"></script>
+  <script src="images.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
