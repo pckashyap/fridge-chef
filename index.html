@@ -17,13 +17,21 @@
     <section class="card" id="kitchen">
       <h2><span class="step">1</span> What do you have in your kitchen?</h2>
 
+      <label class="lang-row">
+        <span>🌐 I'm speaking / typing in</span>
+        <select id="voice-lang" aria-label="Language"></select>
+      </label>
       <form id="add-form" autocomplete="off">
         <input id="ingredient-input" list="ingredient-list" type="text"
                placeholder="Type an ingredient, e.g. eggs, rice, spinach… (press Enter)">
         <datalist id="ingredient-list"></datalist>
+        <button type="button" id="mic-btn" class="mic-btn" aria-pressed="false" title="Speak your ingredients">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+        </button>
         <button type="submit" class="btn">Add</button>
       </form>
-      <p class="hint">Tip: you can paste a list separated by commas.</p>
+      <p class="hint">Tip: tap 🎤 and say what you have, like “I've got eggs, two onions and some spinach”, in any language from the list. You can also paste a comma-separated list.</p>
+      <div id="voice-panel" class="voice-panel" hidden aria-live="polite"></div>
 
       <div id="my-items-wrap">
         <div class="row-between">
@@ -46,6 +54,11 @@
     <section class="card" id="prefs">
       <h2><span class="step">2</span> What kind of food do you feel like?</h2>
       <p class="hint">Pick one or more cuisines, or leave it on "Any cuisine". The numbers show how many recipes match what you have.</p>
+      <label class="world-row">
+        <input type="checkbox" id="world-toggle" checked>
+        <span>Include <strong>800+ world recipes</strong> from 60+ countries (from TheMealDB, needs internet)</span>
+      </label>
+      <p class="world-status"><span id="world-status"></span> <span class="muted">· <span id="total-count">0</span> recipes in total</span></p>
       <div id="cuisine-filter" class="cuisines"></div>
 
       <h3>Diet</h3>
@@ -91,11 +104,14 @@
 
   <footer>
     Ingredients and selections are saved in your browser.<br>
-    Recipe photos are free-licensed images from Wikipedia / Wikimedia Commons and show a typical version of each dish.
+    Built-in recipe photos are free-licensed images from Wikipedia / Wikimedia Commons and show a typical version of each dish.<br>
+    World recipes and their photos come from <a href="https://www.themealdb.com" target="_blank" rel="noopener">TheMealDB</a>.
   </footer>
 
   <script src="recipes.js"></script>
   <script src="images.js"></script>
   <script src="app.js"></script>
+  <script src="worldrecipes.js"></script>
+  <script src="voice.js"></script>
 </body>
 </html>

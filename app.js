@@ -4,6 +4,7 @@ const KNOWN = new Set(Object.values(CATEGORIES).flatMap(flatItems));
 Object.entries(GROUPS).forEach(([k, list]) => { if (!k.startsWith("any ")) KNOWN.add(k); list.forEach(i => KNOWN.add(i)); });
 RECIPES.forEach(r => [...r.need, ...r.opt].forEach(([item]) =>
   item.split("|").forEach(i => { if (!i.startsWith("any ")) KNOWN.add(i); })));
+RECIPES.forEach(r => { r.id = r.name; r.source = "builtin"; });
 
 const store = {
   get(key, fallback) {
@@ -18,7 +19,19 @@ let mealFilter = store.get("fridgechef.meal", "all");
 let maxMissing = store.get("fridgechef.maxMissing", 2);
 let diet = store.get("fridgechef.diet", "all");        // "all" | "veg" | "nonveg"
 let eggsOk = store.get("fridgechef.eggsOk", true);      // do eggs count as vegetarian?
-let cuisines = new Set(store.get("fridgechef.cuisines", []).filter(c => c in CUISINES)); // empty = any
+let cuisines = new Set(store.get("fridgechef.cuisines", [])); // empty = any
+let showAllCuisines = false;
+
+// World recipes (filled in by worldrecipes.js once they've loaded).
+let worldRecipes = [];
+let worldEnabled = store.get("fridgechef.world", true);
+let worldStatus = "idle";                 // "idle" | "loading" | "ready" | "error"
+const WORLD_MEAT = new Set();             // ingredient names from world recipes that are meat/fish
+const allRecipes = () => worldEnabled ? RECIPES.concat(worldRecipes) : RECIPES;
+const findRecipe = id => RECIPES.find(r => r.id === id) || worldRecipes.find(r => r.id === id);
+
+const PAGE = 48;
+let shownLimit = PAGE;
 
 const $ = id => document.getElementById(id);
 const els = {
@@ -27,14 +40,18 @@ const els = {
   staples: $("staples"), categories: $("categories"), results: $("results"),
   meal: $("meal-filter"), maxMissing: $("max-missing"),
   cuisine: $("cuisine-filter"), diet: $("diet-filter"), eggsOk: $("eggs-ok"), eggsOkWrap: $("eggs-ok-wrap"),
+  world: $("world-toggle"), worldStatus: $("world-status"), totalCount: $("total-count"),
   dialog: $("recipe-dialog"), dialogBody: $("dialog-body")
 };
 els.staples.checked = store.get("fridgechef.staples", true);
 els.maxMissing.value = String(maxMissing);
+els.world.checked = worldEnabled;
 
 // ---------- Helpers ----------
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pretty = item => item.split("|").join(" or ");
+// A recipe slot is [item, amount, label?]; the label is the original wording, used for display.
+const slotLabel = ([item, , label]) => label || pretty(item);
 
 // Turn whatever the user typed into one of our ingredient names (if we can).
 function normalize(raw) {
@@ -68,17 +85,22 @@ const matchesFor = item => {
   item.split("|").forEach(i => {
     if (pantry.has(i)) out.add(i);
     (GROUPS[i] || []).forEach(g => { if (pantry.has(g)) out.add(g); });
+    // Unusual ingredients (e.g. "worcestershire sauce"): match if you typed the key word(s).
+    if (!out.size && !KNOWN.has(i) && !i.startsWith("any ")) {
+      const padded = ` ${i} `;
+      pantry.forEach(p => { if (!KNOWN.has(p) && padded.includes(` ${p} `)) out.add(p); });
+    }
   });
   return [...out];
 };
 const has = item => matchesFor(item).length > 0;
 
 // ---------- Vegetarian / non-veg ----------
-const isMeat = i => MEAT.includes(i) || (!eggsOk && i === "egg");
+const isMeat = i => MEAT.includes(i) || WORLD_MEAT.has(i) || (!eggsOk && i === "egg");
 const slotHasMeat = item => item.split("|").some(isMeat);
 const slotAllMeat = item => item.split("|").every(isMeat);
-const hasMeat = r => [...r.need, ...r.opt].some(([i]) => slotHasMeat(i));
-const requiresMeat = r => r.need.some(([i]) => slotAllMeat(i));
+const hasMeat = r => r.forceNonVeg || [...r.need, ...r.opt].some(([i]) => slotHasMeat(i));
+const requiresMeat = r => r.forceNonVeg || r.need.some(([i]) => slotAllMeat(i));
 
 // "veg" = no meat at all, "either" = meat is optional or swappable, "nonveg" = meat required.
 const dietType = r => requiresMeat(r) ? "nonveg" : hasMeat(r) ? "either" : "veg";
@@ -91,8 +113,8 @@ function adapt(r) {
   const strip = item => item.split("|").filter(i => !isMeat(i)).join("|");
   return {
     ...r,
-    need: r.need.map(([i, q]) => [strip(i), q]),
-    opt: r.opt.map(([i, q]) => [strip(i), q]).filter(([i]) => i)
+    need: r.need.map(([i, q, l]) => [strip(i), q, l]),
+    opt: r.opt.map(([i, q, l]) => [strip(i), q, l]).filter(([i]) => i)
   };
 }
 
@@ -104,10 +126,10 @@ function dietTag(r) {
 }
 
 function scoreRecipe(r) {
-  const missing = r.need.filter(([item]) => !has(item)).map(([item]) => item);
-  const haveCount = r.need.length - missing.length;
+  const missingSlots = r.need.filter(([item]) => !has(item));
+  const haveCount = r.need.length - missingSlots.length;
   const optHave = r.opt.filter(([item]) => has(item)).length;
-  return { recipe: r, missing, haveCount, optHave, pct: haveCount / r.need.length };
+  return { recipe: r, missing: missingSlots.map(slotLabel), haveCount, optHave, pct: r.need.length ? haveCount / r.need.length : 0 };
 }
 
 function save() {
@@ -118,33 +140,59 @@ function save() {
   store.set("fridgechef.diet", diet);
   store.set("fridgechef.eggsOk", eggsOk);
   store.set("fridgechef.cuisines", [...cuisines]);
+  store.set("fridgechef.world", worldEnabled);
 }
+
+const mealOk = r => mealFilter === "all" || r.meal === mealFilter;
 
 // Recipes that fit your kitchen, meal and diet choices (before the cuisine filter).
 function candidates() {
-  return RECIPES
-    .filter(r => mealFilter === "all" || r.meal === mealFilter)
+  return allRecipes()
+    .filter(mealOk)
     .map(adapt).filter(Boolean)
     .map(scoreRecipe)
     .filter(s => s.haveCount > 0 && s.missing.length <= maxMissing);
 }
 
-const cuisineLabel = c => `${CUISINES[c] || "🍽️"} ${esc(c)}`;
+const flagFor = c => CUISINES[c] || (typeof WORLD_FLAGS !== "undefined" && WORLD_FLAGS[c]) || "🍽️";
+const cuisineLabel = c => `${flagFor(c)} ${esc(c)}`;
+const FEATURED = 16; // cuisine buttons shown before "More cuisines"
 
-function renderCuisines() {
+function renderCuisines(cands) {
   // With an empty kitchen, show how many recipes each cuisine has in total.
-  const pool = pantry.size ? candidates().map(s => s.recipe)
-    : RECIPES.filter(r => mealFilter === "all" || r.meal === mealFilter).map(adapt).filter(Boolean);
+  const pool = pantry.size ? cands.map(s => s.recipe) : allRecipes().filter(mealOk).map(adapt).filter(Boolean);
   const counts = {};
   pool.forEach(r => { counts[r.cuisine] = (counts[r.cuisine] || 0) + 1; });
+
+  // Every cuisine we know about: the main ones first, then the rest by size.
+  const all = new Set(Object.keys(CUISINES));
+  allRecipes().forEach(r => all.add(r.cuisine));
+  const extra = [...all].filter(c => !(c in CUISINES))
+    .sort((a, b) => (counts[b] || 0) - (counts[a] || 0) || a.localeCompare(b));
+  const ordered = [...Object.keys(CUISINES), ...extra];
+  const visible = showAllCuisines ? ordered
+    : ordered.filter((c, i) => i < FEATURED || cuisines.has(c));
 
   const btn = (key, label, n, on) =>
     `<button class="cuisine ${on ? "on" : ""} ${n ? "" : "zero"}" data-cuisine="${esc(key)}">
        ${label} <span class="n">${n}</span></button>`;
+  const more = ordered.length > FEATURED
+    ? `<button class="cuisine more" data-more>${showAllCuisines ? "Show fewer" : `+ ${ordered.length - visible.length} more cuisines`}</button>` : "";
   els.cuisine.innerHTML =
     btn("", `<span class="flag">🌍</span> Any cuisine`, pool.length, cuisines.size === 0) +
-    Object.keys(CUISINES).map(c =>
-      btn(c, `<span class="flag">${CUISINES[c]}</span> ${esc(c)}`, counts[c] || 0, cuisines.has(c))).join("");
+    visible.map(c => btn(c, `<span class="flag">${flagFor(c)}</span> ${esc(c)}`, counts[c] || 0, cuisines.has(c))).join("") +
+    more;
+}
+
+function renderWorldStatus() {
+  const total = allRecipes().length;
+  els.totalCount.textContent = total;
+  const msg = {
+    idle: "", loading: "⏳ Loading world recipes…",
+    ready: `✓ ${worldRecipes.length} world recipes loaded`,
+    error: "⚠️ Couldn't reach TheMealDB (are you offline?). Showing built-in recipes only."
+  }[worldStatus];
+  els.worldStatus.textContent = worldEnabled ? msg : "";
 }
 
 // ---------- Rendering ----------
@@ -181,13 +229,29 @@ function renderCategories() {
   els.datalist.innerHTML = [...KNOWN].sort().map(i => `<option value="${esc(i)}">`).join("");
 }
 
-// Photo with an emoji fallback if there's no photo or it fails to load.
-function photo(r, cls) {
+// Photo info for a recipe: { card, full, page, credit } or null.
+function imageFor(r) {
+  if (r.image) return { card: r.image + "/small", full: r.image, page: r.link, credit: "Recipe & photo: TheMealDB" };
   const img = (typeof RECIPE_IMAGES !== "undefined") && RECIPE_IMAGES[r.name];
+  return img ? { card: img.src, full: img.src, page: img.page, credit: "Photo: Wikimedia (similar dish)" } : null;
+}
+
+// Photo with an emoji fallback if there's no photo or it fails to load.
+function photo(r, cls, big) {
+  const img = imageFor(r);
+  const src = img && (big ? img.full : img.card);
   return `<div class="photo ${cls} ${img ? "" : "noimg"}" data-emoji="${r.emoji}">
-    ${img ? `<img src="${esc(img.src)}" alt="${esc(r.name)}" loading="lazy" decoding="async"
+    ${img ? `<img src="${esc(src)}" alt="${esc(r.name)}" loading="lazy" decoding="async"
       referrerpolicy="no-referrer" onerror="this.parentElement.classList.add('noimg');this.remove()">` : ""}
   </div>`;
+}
+
+function metaLine(r) {
+  const bits = [`<span class="cuisine-tag">${cuisineLabel(r.cuisine)}</span>`];
+  if (r.time) bits.push(`⏱ ${r.time} min`);
+  if (r.serves) bits.push(`serves ${r.serves}`);
+  bits.push(r.category ? esc(r.category.toLowerCase()) : r.meal);
+  return bits.join(" · ");
 }
 
 function recipeCard(s) {
@@ -197,29 +261,32 @@ function recipeCard(s) {
   else if (s.missing.length <= 2) { status = `Missing ${s.missing.length}`; cls = "close"; }
   else { status = `Missing ${s.missing.length} items`; cls = "far"; }
   const extras = s.optHave ? ` · +${s.optHave} extra${s.optHave > 1 ? "s" : ""} you have` : "";
+  const shown = s.missing.slice(0, 6);
   return `
-    <button class="recipe" data-recipe="${esc(r.name)}">
+    <button class="recipe" data-recipe="${esc(r.id)}">
       ${photo(r, "card-photo")}
+      ${r.source === "mealdb" ? `<span class="src-badge">🌐 World recipe</span>` : ""}
       <div class="card-body">
         <div class="title">${esc(r.name)}</div>
-        <div class="meta"><span class="cuisine-tag">${cuisineLabel(r.cuisine)}</span> · ⏱ ${r.time} min · serves ${r.serves} · ${r.meal}</div>
-        ${dietTag(RECIPES.find(x => x.name === r.name))}
+        <div class="meta">${metaLine(r)}</div>
+        ${dietTag(findRecipe(r.id) || r)}
         <div class="bar"><span style="width:${Math.round(s.pct * 100)}%"></span></div>
         <div class="status ${cls}">${status}${extras}</div>
-        ${s.missing.length ? `<div class="need-list">Need: ${s.missing.map(m => `<b>${esc(pretty(m))}</b>`).join(", ")}</div>` : ""}
+        ${shown.length ? `<div class="need-list">Need: ${shown.map(m => `<b>${esc(m)}</b>`).join(", ")}${s.missing.length > shown.length ? ` +${s.missing.length - shown.length} more` : ""}</div>` : ""}
       </div>
     </button>`;
 }
 
-function renderResults() {
+function renderResults(cands) {
   if (pantry.size === 0) {
     els.results.innerHTML = `<div class="empty-results"><div class="big">🧺</div>
       Add a few things from your kitchen above and recipes will appear here.</div>`;
     return;
   }
-  const scored = candidates()
+  const scored = cands
     .filter(s => cuisines.size === 0 || cuisines.has(s.recipe.cuisine))
-    .sort((a, b) => a.missing.length - b.missing.length || b.pct - a.pct || b.optHave - a.optHave || a.recipe.time - b.recipe.time);
+    .sort((a, b) => a.missing.length - b.missing.length || b.pct - a.pct || b.optHave - a.optHave
+      || (a.recipe.time || 999) - (b.recipe.time || 999));
 
   if (!scored.length) {
     els.results.innerHTML = `<div class="empty-results"><div class="big">🤔</div>
@@ -227,20 +294,26 @@ function renderResults() {
     return;
   }
 
-  const ready = scored.filter(s => s.missing.length === 0);
-  const almost = scored.filter(s => s.missing.length > 0);
+  const page = scored.slice(0, shownLimit);
+  const ready = page.filter(s => s.missing.length === 0);
+  const almost = page.filter(s => s.missing.length > 0);
+  const readyTotal = scored.filter(s => s.missing.length === 0).length;
   let html = "";
-  if (ready.length) html += `<h3 class="group-title">🎉 Ready to cook (${ready.length})</h3>` + ready.map(recipeCard).join("");
-  if (almost.length) html += `<h3 class="group-title">🛒 Just a few things short (${almost.length})</h3>` + almost.map(recipeCard).join("");
+  if (ready.length) html += `<h3 class="group-title">🎉 Ready to cook (${readyTotal})</h3>` + ready.map(recipeCard).join("");
+  if (almost.length) html += `<h3 class="group-title">🛒 A few things short (${scored.length - readyTotal})</h3>` + almost.map(recipeCard).join("");
+  if (scored.length > shownLimit) {
+    html += `<div class="more-wrap"><button class="btn" data-show-more>Show more recipes (${scored.length - shownLimit} left)</button></div>`;
+  }
   els.results.innerHTML = html;
 }
 
-function openRecipe(name) {
-  const original = RECIPES.find(x => x.name === name);
+function openRecipe(id) {
+  const original = findRecipe(id);
   if (!original) return;
   const r = adapt(original) || original;
   const s = scoreRecipe(r);
-  const line = ([item, qty], optional) => {
+  const line = (slot, optional) => {
+    const [item, qty] = slot;
     const got = matchesFor(item);
     const ok = got.length > 0;
     const flexible = item.includes("|") || item.split("|").some(i => GROUPS[i]);
@@ -248,28 +321,35 @@ function openRecipe(name) {
       ? ` <span class="optional-tag">— you have ${esc(got.join(", "))}</span>` : "";
     return `<li class="${ok ? "have" : "miss"}">
       <span class="mark">${ok ? "✓" : optional ? "○" : "✗"}</span>
-      <span class="name">${esc(pretty(item))}${optional ? ' <span class="optional-tag">(optional)</span>' : ""}${using}</span>
-      <span class="qty">${esc(qty)}</span></li>`;
+      <span class="name">${esc(slotLabel(slot))}${optional ? ' <span class="optional-tag">(optional)</span>' : ""}${using}</span>
+      <span class="qty">${esc(qty || "")}</span></li>`;
   };
-  const staplesNote = els.staples.checked ? "" :
-    `<p class="muted">Also uses some of: ${STAPLES.join(", ")}.</p>`;
+  const basics = r.basics && r.basics.length ? r.basics.map(([n, q]) => q ? `${n} (${q})` : n).join(", ") : "";
+  const staplesNote = basics ? `<p class="muted">Kitchen basics: ${esc(basics)}.</p>`
+    : els.staples.checked ? "" : `<p class="muted">Also uses some of: ${STAPLES.join(", ")}.</p>`;
 
-  const img = (typeof RECIPE_IMAGES !== "undefined") && RECIPE_IMAGES[r.name];
+  const img = imageFor(r);
+  const links = [];
+  if (r.sourceUrl) links.push(`<a href="${esc(r.sourceUrl)}" target="_blank" rel="noopener">Original recipe ↗</a>`);
+  if (r.video) links.push(`<a href="${esc(r.video)}" target="_blank" rel="noopener">▶ Watch video</a>`);
+  if (r.link) links.push(`<a href="${esc(r.link)}" target="_blank" rel="noopener">View on TheMealDB ↗</a>`);
+
   els.dialogBody.innerHTML = `
     <div class="dlg-photo-wrap">
-      ${photo(r, "dlg-photo")}
+      ${photo(r, "dlg-photo", true)}
       <button class="close-btn on-photo" data-close aria-label="Close">×</button>
-      ${img ? `<a class="credit" href="${esc(img.page)}" target="_blank" rel="noopener">Photo: Wikimedia (similar dish)</a>` : ""}
+      ${img ? `<a class="credit" href="${esc(img.page)}" target="_blank" rel="noopener">${esc(img.credit)}</a>` : ""}
     </div>
     <div class="dlg-head">
       <span class="emoji">${r.emoji}</span>
       <div>
         <h2>${esc(r.name)}</h2>
-        <div class="muted">${cuisineLabel(r.cuisine)} · ⏱ ${r.time} min · serves ${r.serves} · ${r.meal}</div>
+        <div class="muted">${metaLine(r)}</div>
         ${dietTag(original)}
         ${diet === "veg" && dietType(original) === "either" ? `<div class="muted">Showing the vegetarian version.</div>` : ""}
       </div>
     </div>
+    ${links.length ? `<div class="links">${links.join("")}</div>` : ""}
     <h3>Ingredients</h3>
     <ul class="ing">
       ${r.need.map(i => line(i, false)).join("")}
@@ -278,8 +358,8 @@ function openRecipe(name) {
     ${staplesNote}
     ${s.missing.length ? `
       <div class="shopping">
-        <strong>Shopping list:</strong> ${s.missing.map(m => esc(pretty(m))).join(", ")}<br>
-        <button class="btn" data-copy="${esc(s.missing.map(pretty).join("\n"))}">Copy list</button>
+        <strong>Shopping list:</strong> ${s.missing.map(esc).join(", ")}<br>
+        <button class="btn" data-copy="${esc(s.missing.join("\n"))}">Copy list</button>
       </div>` : ""}
     <h3>Steps</h3>
     <ol class="steps">${r.steps.map(st => `<li>${esc(st)}</li>`).join("")}</ol>`;
@@ -287,9 +367,19 @@ function openRecipe(name) {
   els.dialog.scrollTop = 0;
 }
 
-function render() { renderPantry(); renderCuisines(); renderResults(); save(); }
+function render(keepPage) {
+  if (!keepPage) shownLimit = PAGE;
+  const cands = pantry.size ? candidates() : [];
+  renderPantry();
+  renderCuisines(cands);
+  renderWorldStatus();
+  renderResults(cands);
+  save();
+}
 
+// ---------- Events ----------
 els.cuisine.addEventListener("click", e => {
+  if (e.target.closest("[data-more]")) { showAllCuisines = !showAllCuisines; render(true); return; }
   const b = e.target.closest("[data-cuisine]");
   if (!b) return;
   const c = b.dataset.cuisine;
@@ -298,9 +388,10 @@ els.cuisine.addEventListener("click", e => {
   render();
 });
 
-// ---------- Events ----------
 els.form.addEventListener("submit", e => {
   e.preventDefault();
+  // Non-English text is translated first (see voice.js).
+  if (typeof handleTypedText === "function" && handleTypedText(els.input.value)) { els.input.value = ""; return; }
   els.input.value.split(/[,;\n]+/).map(normalize).filter(Boolean).forEach(i => pantry.add(i));
   els.input.value = "";
   render();
@@ -351,7 +442,14 @@ els.diet.addEventListener("click", e => {
 els.eggsOk.addEventListener("change", () => { eggsOk = els.eggsOk.checked; render(); });
 syncDietUI();
 
+els.world.addEventListener("change", () => {
+  worldEnabled = els.world.checked;
+  if (worldEnabled && typeof loadWorldRecipes === "function") loadWorldRecipes();
+  render();
+});
+
 els.results.addEventListener("click", e => {
+  if (e.target.closest("[data-show-more]")) { shownLimit += PAGE; render(true); return; }
   const b = e.target.closest("[data-recipe]");
   if (b) openRecipe(b.dataset.recipe);
 });

@@ -76,6 +76,34 @@ h3 { font-size: 1rem; margin: 20px 0 10px; }
   background: var(--accent); color: #fff; cursor: pointer;
 }
 .btn:hover { filter: brightness(1.05); }
+/* Voice + language */
+.lang-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; font-size: .92rem; color: var(--muted); }
+.lang-row select {
+  font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; max-width: 100%;
+}
+.mic-btn {
+  flex: none; width: 48px; border-radius: 12px; cursor: pointer;
+  border: 2px solid var(--border); background: var(--bg); color: var(--accent);
+  display: grid; place-items: center; transition: background .15s, border-color .15s;
+}
+.mic-btn:hover { border-color: var(--accent); }
+.mic-btn.listening { background: var(--bad); border-color: var(--bad); color: #fff; animation: mic-pulse 1.2s infinite; }
+.mic-btn.unsupported { opacity: .5; }
+@keyframes mic-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, .5); } 50% { box-shadow: 0 0 0 8px rgba(192, 57, 43, 0); } }
+.voice-panel {
+  margin-top: 12px; padding: 12px 14px; border-radius: 12px;
+  background: var(--accent-soft); border: 1px solid var(--border); font-size: .93rem;
+}
+.vp-row { margin: 4px 0; }
+.vp-row.warn { color: var(--bad); }
+.vp-row.live { font-size: 1.05rem; font-style: italic; min-height: 1.4em; }
+.chips.inline { display: inline-flex; vertical-align: middle; margin-left: 4px; gap: 6px; }
+.chips.inline .chip { padding: 3px 10px; font-size: .85rem; }
+.vp-close { font-size: .85rem; margin-top: 4px; }
+.pulse { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--bad); animation: blink 1s infinite; vertical-align: 1px; }
+@keyframes blink { 50% { opacity: .25; } }
+
 .hint { margin: 6px 2px 0; font-size: .85rem; color: var(--muted); }
 .muted { color: var(--muted); margin: 4px 0; }
 .row-between { display: flex; justify-content: space-between; align-items: center; }
@@ -140,6 +168,24 @@ h3 { font-size: 1rem; margin: 20px 0 10px; }
 .cuisine.on .n { color: var(--accent); }
 .cuisine.zero:not(.on) { opacity: .55; }
 .cuisine-tag { white-space: nowrap; }
+.cuisine.more { border-style: dashed; color: var(--accent); font-weight: 600; }
+.world-row { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0 4px; font-size: .95rem; cursor: pointer; }
+.world-row input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); flex: none; }
+.world-status { margin: 0 0 4px 28px; font-size: .85rem; color: var(--good); min-height: 1.2em; }
+.recipe { position: relative; }
+.src-badge {
+  position: absolute; top: 10px; left: 10px;
+  font-size: .72rem; font-weight: 600; color: #fff;
+  background: rgba(0, 0, 0, .55); padding: 3px 8px; border-radius: 99px;
+}
+.more-wrap { grid-column: 1 / -1; text-align: center; padding: 8px 0; }
+.links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.links a {
+  font-size: .85rem; text-decoration: none; color: var(--accent);
+  border: 1px solid var(--border); border-radius: 99px; padding: 4px 12px;
+}
+.links a:hover { border-color: var(--accent); }
+footer a { color: inherit; }
 .diet-row { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .eggs-ok { display: flex; gap: 6px; align-items: center; font-size: .9rem; color: var(--muted); }
 .eggs-ok input { accent-color: var(--accent); }

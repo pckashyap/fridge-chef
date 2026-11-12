@@ -1860,6 +1860,9 @@ const LEAFY = ["spinach", "kale", "swiss chard", "collard greens", "bok choy", "
 // GROUPS: a recipe ingredient (key) is satisfied if you have the key itself
 // or ANY of the listed items. Keys starting with "any …" are flexible slots.
 const GROUPS = {
+  "ground beef": ["beef"],
+  "beef": ["ground beef"],
+  "white fish": ["salmon"],
   "onion": ["red onion", "white onion", "shallot", "pearl onion"],
   "green onion": ["chives", "ramps"],
   "lettuce": ["romaine", "iceberg lettuce", "butter lettuce"],
@@ -1884,19 +1887,29 @@ const GROUPS = {
 // an object shows sub-sections. "Popular" is expanded by default.
 const CATEGORIES = {
   "Popular": ["egg", "chicken", "onion", "garlic", "tomato", "potato", "carrot", "bell pepper", "spinach", "broccoli", "lemon", "banana", "apple", "milk", "butter", "cheese", "rice", "pasta", "bread"],
-  "Proteins": ["egg", "chicken", "ground beef", "bacon", "ham", "sausage", "salmon", "tuna", "shrimp", "tofu", "paneer", "beans", "chickpeas", "lentils"],
+  "Proteins": ["egg", "chicken", "ground beef", "beef", "lamb", "pork", "turkey", "duck", "bacon", "ham", "sausage", "salmon", "tuna", "white fish", "shrimp", "tofu", "paneer", "beans", "chickpeas", "lentils"],
   "Vegetables": VEGETABLES,
   "Fruit": FRUITS,
   "Dairy": ["milk", "butter", "cheese", "paneer", "yogurt", "cream"],
   "Grains & bread": ["rice", "pasta", "rice noodles", "instant noodles", "bread", "breadcrumbs", "tortilla", "rice paper", "flour", "oats", "yeast"],
-  "Pantry": ["soy sauce", "fish sauce", "vinegar", "sesame oil", "honey", "sugar", "mayonnaise", "coconut milk", "peanut butter", "peanuts", "tahini", "sesame seeds", "thai curry paste", "miso", "kimchi", "gochujang", "ketchup", "mustard", "chocolate", "baking powder", "baking soda"],
-  "Herbs & spices": ["basil", "parsley", "cilantro", "mint", "dill", "oregano", "cinnamon", "cumin", "turmeric", "paprika", "chili flakes", "chili powder", "curry powder", "garam masala"]
+  "Pantry": ["soy sauce", "fish sauce", "vinegar", "sesame oil", "honey", "sugar", "mayonnaise", "coconut milk", "peanut butter", "peanuts", "tahini", "sesame seeds", "thai curry paste", "miso", "kimchi", "gochujang", "ketchup", "mustard", "worcestershire sauce", "chocolate", "cornstarch", "almonds", "walnuts", "cashews", "baking powder", "baking soda"],
+  "Herbs & spices": ["basil", "parsley", "cilantro", "mint", "dill", "oregano", "cinnamon", "cumin", "turmeric", "paprika", "chili flakes", "chili powder", "curry powder", "garam masala", "thyme", "rosemary", "bay leaf", "nutmeg", "cloves", "cardamom", "vanilla"]
 };
 
 // Other names people might type, mapped to the names used above.
 const SYNONYMS = {
   "eggs": "egg", "chicken breast": "chicken", "chicken thigh": "chicken", "chicken thighs": "chicken",
-  "mince": "ground beef", "minced beef": "ground beef", "beef mince": "ground beef", "hamburger": "ground beef", "beef": "ground beef",
+  "mince": "ground beef", "minced beef": "ground beef", "beef mince": "ground beef", "hamburger": "ground beef", "minced lamb": "lamb", "lamb mince": "lamb", "mutton": "lamb",
+  "steak": "beef", "stewing beef": "beef", "beef brisket": "beef", "pork chops": "pork", "pork belly": "pork", "pork loin": "pork",
+  "cod": "white fish", "haddock": "white fish", "hake": "white fish", "pollock": "white fish", "tilapia": "white fish", "fish": "white fish",
+  "garlic clove": "garlic", "garlic cloves": "garlic", "clove of garlic": "garlic", "cloves of garlic": "garlic",
+  "dragonfruit": "dragon fruit", "passionfruit": "passion fruit", "starfruit": "star fruit", "jackfruits": "jackfruit",
+  "cornflour": "cornstarch", "corn starch": "cornstarch", "corn flour": "cornstarch", "bay leaves": "bay leaf",
+  "vanilla extract": "vanilla", "vanilla essence": "vanilla", "worcestershire": "worcestershire sauce",
+  "plain flour": "flour", "all purpose flour": "flour", "self-raising flour": "flour", "self raising flour": "flour",
+  "caster sugar": "sugar", "icing sugar": "sugar", "brown sugar": "sugar", "granulated sugar": "sugar",
+  "double cream": "cream", "single cream": "cream", "whipping cream": "cream", "creme fraiche": "cream",
+  "tomato puree": "tomato", "tomato paste": "tomato", "chopped tomatoes": "tomato", "plum tomatoes": "tomato",
   "spaghetti": "pasta", "penne": "pasta", "macaroni": "pasta", "noodles": "pasta", "fusilli": "pasta", "linguine": "pasta",
   "ramen": "instant noodles", "maggi": "instant noodles", "cup noodles": "instant noodles",
   "canned tomatoes": "tomato", "tinned tomatoes": "tomato", "tomato sauce": "tomato", "passata": "tomato", "tomatoes": "tomato",
@@ -1939,7 +1952,7 @@ const SYNONYMS = {
 
 // Meat and fish, used for the vegetarian / non-veg filter.
 // (Eggs are handled separately by the "Eggs count as vegetarian" setting.)
-const MEAT = ["chicken", "ground beef", "bacon", "ham", "sausage", "salmon", "tuna", "shrimp", "fish sauce"];
+const MEAT = ["chicken", "ground beef", "beef", "lamb", "pork", "turkey", "duck", "bacon", "ham", "sausage", "salmon", "tuna", "white fish", "shrimp", "fish sauce", "worcestershire sauce"];
 
 // Assumed in every kitchen and never counted as missing.
 const STAPLES = ["salt", "pepper", "oil", "water"];
