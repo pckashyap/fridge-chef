@@ -7,6 +7,7 @@ Tell it what's in your kitchen and it shows you what you can cook.
 ## Features
 
 - **Pick your ingredients.** Type them in, paste a comma-separated list, or tap from 300+ items, including 130+ vegetables and 75+ fruits. It understands other names too, like aubergine, courgette, coriander, prawns and bhindi.
+- **Translate the whole website.** Tap 🌐 Translate (top right) and pick one of 40 languages, including Telugu, Hindi, Tamil, Kannada, Spanish, Chinese and Arabic. The page, including every recipe, is translated by Google Translate, and the mic switches to the same language.
 - **Talk to it in 36 languages.** Tap 🎤 and say what you have, in English, Telugu, Hindi, Tamil, Spanish, Chinese, Arabic and more. Non-English speech or typing is translated, and the ingredients are added automatically. The mic works in Chrome, Edge and Safari.
 - **950+ recipes from 65 cuisines.** 162 built-in recipes from 14 cuisines, plus about 790 world recipes from 60+ countries loaded live from [TheMealDB](https://www.themealdb.com). These include Turkish, Polish, Jamaican, Brazilian, Moroccan, Filipino and many more.
 - **Smart matching.** "Ready to cook" lists what you can make now. "Just a few things short" lists recipes you're 1–2 items away from, with a copyable shopping list.
@@ -31,6 +32,7 @@ No build step and no dependencies. Just open `index.html` in a browser. World re
 | `images.js` | Photo URLs for built-in recipes |
 | `worldrecipes.js` | Loads and converts world recipes from TheMealDB |
 | `voice.js` | Voice input, translation and ingredient detection |
+| `translate.js` | Whole-website translation (Google Translate) |
 
 To add a recipe, copy an entry in `recipes.js` and edit it.
 

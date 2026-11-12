@@ -8,6 +8,15 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="translate-bar notranslate">
+    <button id="translate-btn" class="translate-btn" aria-haspopup="true" aria-expanded="false" title="Translate this website">
+      <span aria-hidden="true">🌐</span> <span id="translate-label">Translate</span> <span aria-hidden="true">▾</span>
+    </button>
+    <div id="translate-menu" class="translate-menu" hidden></div>
+  </div>
+  <div id="translate-toast" class="translate-toast notranslate" hidden></div>
+  <div id="google_translate_element" hidden></div>
+
   <header class="hero">
     <h1>🍳 Fridge Chef</h1>
     <p>Tell me what's in your kitchen and I'll show you what you can cook.</p>
@@ -19,7 +28,7 @@
 
       <label class="lang-row">
         <span>🌐 I'm speaking / typing in</span>
-        <select id="voice-lang" aria-label="Language"></select>
+        <select id="voice-lang" class="notranslate" aria-label="Language"></select>
       </label>
       <form id="add-form" autocomplete="off">
         <input id="ingredient-input" list="ingredient-list" type="text"
@@ -113,5 +122,6 @@
   <script src="app.js"></script>
   <script src="worldrecipes.js"></script>
   <script src="voice.js"></script>
+  <script src="translate.js"></script>
 </body>
 </html>
